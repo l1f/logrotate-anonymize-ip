@@ -1,3 +1,4 @@
+// This software anonymizes log files using the parameter specified by the flags
 package main
 
 import (
@@ -9,20 +10,23 @@ import (
 	"os"
 	"regexp"
 	"strconv"
-	"time"
 )
 
-
-var filePath string
-var tmpFilePath string
+var (
+	logFilePath  string
+	tmpFilePath  string
+	IPBlock      = "(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])"
+	regexPattern = IPBlock + "\\." + IPBlock + "\\." + IPBlock + "\\." + IPBlock
+)
 
 func init() {
 	handleFlags()
 }
 
+// extracts the arguments passed via the flags and processes these
 func handleFlags()  {
 	help := flag.Bool("h", false, "Show help message")
-	flag.StringVar(&filePath, "f", "", "Which file should be anonymized?")
+	flag.StringVar(&logFilePath, "f", "", "Which file should be anonymized?")
 	flag.StringVar(&tmpFilePath, "t", "", "Where to save the temp file?")
 	flag.Parse()
 
@@ -30,13 +34,13 @@ func handleFlags()  {
 		printHelp()
 	}
 
-	if filePath == "" {
+	if logFilePath == "" {
 		printHelp()
 	}
 
+	// If the temp file arguments is not specified, the pid of the current process is used as default.
 	if tmpFilePath == "" {
-		timeString := strconv.Itoa(int(time.Now().Unix()))
-		tmpFilePath = "/tmp/anon_" + timeString + "_.tmp"
+		tmpFilePath = "/tmp/anon_" + strconv.Itoa(os.Getpid()) + "_.tmp"
 	}
 }
 
@@ -50,8 +54,9 @@ func printHelp() {
 	os.Exit(0)
 }
 
+// Opens the two files, reads the original file and then overwrites it with the anonymous logs.
 func main() {
-	logFile, err := os.Open(filePath)
+	logFile, err := os.Open(logFilePath)
 	if err != nil{
 		log.Fatal(err)
 	}
@@ -82,62 +87,43 @@ func main() {
 		log.Fatal(err)
 	}
 
-	logFile.Close()
+	logFile.Close() // To be on the safe side, the file is closed before the function ends, so that nothing goes wrong when overwriting.
 
-	err = CopyFile(tmpFilePath, filePath)
+	err = copyFile(tmpFilePath, logFilePath)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
+// Accepts the current line and replaces the IPs in the string.
 func replaceIP(input string) string {
-	numBlock := "(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])"
-	regexPattern := numBlock + "\\." + numBlock + "\\." + numBlock + "\\." + numBlock
-
 	regEx := regexp.MustCompile(regexPattern)
-	ip := regEx.FindString(input)
-	if ip == "" {
-		return input
-	}
-
 	return regEx.ReplaceAllString(input, "[ Anonymized IP ]")
 }
 
-func CopyFile(src, dst string) (err error) {
-	in, err := os.Open(src)
+// Overwrite the src file via the destionation
+func copyFile(src, dst string) error {
+	srcFile, err := os.Open(src)
 	if err != nil {
-		return
+		return err
 	}
-	defer in.Close()
+	defer srcFile.Close()
 
-	out, err := os.Create(dst)
+	destFile, err := os.Create(dst)
 	if err != nil {
-		return
+		return err
 	}
-	defer func() {
-		if e := out.Close(); e != nil {
-			err = e
-		}
-	}()
+	defer destFile.Close()
 
-	_, err = io.Copy(out, in)
+	_, err = io.Copy(destFile, srcFile)
 	if err != nil {
-		return
+		return err
 	}
 
-	err = out.Sync()
+	err = destFile.Sync()
 	if err != nil {
-		return
+		return err
 	}
 
-	si, err := os.Stat(src)
-	if err != nil {
-		return
-	}
-	err = os.Chmod(dst, si.Mode())
-	if err != nil {
-		return
-	}
-
-	return
+	return nil
 }
