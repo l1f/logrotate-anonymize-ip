@@ -15,6 +15,7 @@ import (
 var (
 	logFilePath  string
 	tmpFilePath  string
+	debug 		 bool
 	IPBlock      = "(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])"
 	regexPattern = IPBlock + "\\." + IPBlock + "\\." + IPBlock + "\\." + IPBlock
 )
@@ -24,8 +25,9 @@ func init() {
 }
 
 // extracts the arguments passed via the flags and processes these
-func handleFlags()  {
+func handleFlags() {
 	help := flag.Bool("h", false, "Show help message")
+	flag.BoolVar(&debug, "d", false, "Prints debug output")
 	flag.StringVar(&logFilePath, "f", "", "Which file should be anonymized?")
 	flag.StringVar(&tmpFilePath, "t", "", "Where to save the temp file?")
 	flag.Parse()
@@ -56,26 +58,34 @@ func printHelp() {
 
 // Opens the two files, reads the original file and then overwrites it with the anonymous logs.
 func main() {
+	logDebug(fmt.Sprintf("Open file: %s", logFilePath))
 	logFile, err := os.Open(logFilePath)
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
 
+	logDebug(fmt.Sprintf("Open file: %s", tmpFilePath))
 	tmpFile, err := os.Create(tmpFilePath)
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
-
+	
+	
 	defer func() {
+		logDebug(fmt.Sprintf("Close file: %s", tmpFilePath))
 		err := os.Remove(tmpFile.Name())
 		if err != nil {
 			log.Fatal(err)
 		}
 	}()
 
+	logDebug("New writer")
 	writer := bufio.NewWriter(tmpFile)
+
+	logDebug("New scanner")
 	scanner := bufio.NewScanner(logFile)
 	for scanner.Scan() {
+		logDebug(fmt.Sprintf("Scanner: %s", scanner.Text()))
 		_, err := writer.WriteString(replaceIP(scanner.Text() + "\n"))
 		if err != nil {
 			log.Fatal(err)
@@ -87,8 +97,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	logDebug(fmt.Sprintf("Closing: %s", logFilePath))
 	logFile.Close() // To be on the safe side, the file is closed before the function ends, so that nothing goes wrong when overwriting.
-
+	
+	logDebug(fmt.Sprintf("Copy %s to %s", tmpFilePath, logFilePath))
 	err = copyFile(tmpFilePath, logFilePath)
 	if err != nil {
 		log.Fatal(err)
@@ -126,4 +138,10 @@ func copyFile(src, dst string) error {
 	}
 
 	return nil
+}
+
+func logDebug(str string) {
+	if debug {
+		log.Println(str)
+	}
 }
