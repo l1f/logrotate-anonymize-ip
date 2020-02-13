@@ -1,0 +1,76 @@
+/var/log/syslog
+{
+  rotate 7
+  daily
+  missingok
+  notifempty
+  delaycompress
+  compress
+  prerotate
+    /usr/local/bin/anonip $1
+  endscript
+  postrotate
+    invoke-rc.d rsyslog rotate > /dev/null
+  endscript
+}
+
+# Anonymize Maillogs after 14 days
+/var/log/mail.info
+/var/log/mail.warn
+/var/log/mail.err
+/var/log/mail.log
+{
+  daily
+  create 0640 root adm
+  rotate 14
+  missingok
+  notifyempty
+  delycompress
+  compress
+  prerotate
+    /usr/local/bin/anonip $1
+  endscript
+  postrotate
+    invoke-rc.d rsyslog rotate > /dev/null
+  endscript
+}
+
+# Anonymize Auth logs after 4 weeks
+/var/log/auth.log
+{
+  # Keep 4 old log files (4 weeks)
+  rotate 7
+  # Rotate weekly 
+  daily
+  create 0640 root adm
+  missingok
+  notifyempty
+  compress
+  delaycompress
+  prerotate
+    /usr/local/bin/anonip $1
+  endscript
+  postrotate
+    invoke-rc.d rsyslog rotate > /dev/null 
+  endscript
+}
+
+/var/log/daemon.log
+/var/log/kern.log
+/var/log/user.log
+/var/log/lpr.log
+/var/log/cron.log
+/var/log/debug
+/var/log/messages
+{
+  rotate 4
+  weekly
+  missingok
+  notifempty
+  compress
+  delaycompress
+  sharedscripts
+  postrotate
+    invoke-rc.d rsyslog rotate > /dev/null
+  endscript
+}
