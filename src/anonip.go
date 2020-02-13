@@ -14,7 +14,7 @@ import (
 
 var (
 	logFilePaths []string
-	tmpFilePath  string
+	tmpFilePath  = "/tmp/anon_" + strconv.Itoa(os.Getpid()) + "_.tmp"
 	debug        bool
 	ipBlock      = "(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])"
 	regexPattern = ipBlock + "\\." + ipBlock + "\\." + ipBlock + "\\." + ipBlock
@@ -37,11 +37,6 @@ func handleFlags() {
 
 	if len(logFilePaths) <= 1 {
 		printHelp()
-	}
-
-	// If the temp file arguments is not specified, the pid of the current process is used as default.
-	if tmpFilePath == "" {
-		tmpFilePath = "/tmp/anon_" + strconv.Itoa(os.Getpid()) + "_.tmp"
 	}
 }
 
